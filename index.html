@@ -1,0 +1,122 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+<script>
+let rotSpeedY = 0;
+let rotY = 0;
+const sensitivity = 0.0001;
+
+function setup() {
+  createCanvas(windowWidth, windowHeight, WEBGL);
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+function draw() {
+  background(0);
+  let s = height / 6;
+  let light_radius = 3 * s;
+  let lightAngle = frameCount * 0.02;
+  let lightX = cos(lightAngle) * light_radius;
+  let lightZ = sin(lightAngle) * light_radius;
+  rotY += rotSpeedY;
+  rotateY(rotY);
+  ambientLight(50);
+  pointLight(255, 255, 255, lightX, 0, lightZ);
+  shininess(20);
+  scale(s);
+  drawMenger(0, 0, 0, 2, 2);
+  // Draw the fixed pole
+  push();
+  translate(0, -1.5, 0);
+  specularMaterial(255);
+  fill(200);
+  cylinder(0.05, 2);
+  pop();
+}
+
+function mouseDragged() {
+  rotSpeedY += (mouseX - pmouseX) * sensitivity;
+}
+
+function drawMenger(x, y, z, size, level) {
+  if (level == 0) {
+    push();
+    translate(x, y, z);
+    let t = map(x, -1, 1, 0, 1);
+    let c = lerpColor(color(255, 0, 0), color(0, 0, 255), t);
+    specularMaterial(255);
+    fill(c);
+    box(size);
+    pop();
+  } else {
+    let new_size = size / 3;
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        for (let k = 0; k < 3; k++) {
+          let count = (i === 1 ? 1 : 0) + (j === 1 ? 1 : 0) + (k === 1 ? 1 : 0);
+          if (count <= 1) {
+            let new_x = x + (i - 1) * new_size;
+            let new_y = y + (j - 1) * new_size;
+            let new_z = z + (k - 1) * new_size;
+            drawMenger(new_x, new_y, new_z, new_size, level - 1);
+          }
+        }
+      }
+    }
+  }
+}
+</script>
+</body>
+</html>
